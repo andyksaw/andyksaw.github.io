@@ -1,2 +1,32 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>fastlane on andysaw</title><link>https://andyksaw.github.io/categories/fastlane/</link><description>Recent content in fastlane on andysaw</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 06 Jan 2022 23:00:26 +0900</lastBuildDate><atom:link href="https://andyksaw.github.io/categories/fastlane/index.xml" rel="self" type="application/rss+xml"/><item><title>Migrating to Fastlane (Part 1)</title><link>https://andyksaw.github.io/posts/migrate_to_fastlane_part_1/</link><pubDate>Thu, 06 Jan 2022 23:00:26 +0900</pubDate><guid>https://andyksaw.github.io/posts/migrate_to_fastlane_part_1/</guid><description>App releases, app distribution and general day-to-day development is full of laborious, manual tasks that squander our time. For iOS developers, Fastlane is an invaluable tool that can help automate away most of this.
-It&amp;rsquo;s fantastically easy to integrate into your workflow - that is, unless you find yourself with an app that has already seen multiple, manually-performed releases. I found myself in said situation recently, banging my head in frustration at the lack of documentation regarding this.</description></item></channel></rss>
+It&amp;rsquo;s fantastically easy to integrate into your workflow - that is, unless you find yourself with an app that has already seen multiple, manually-performed releases. I found myself in said situation recently, banging my head in frustration at the lack of documentation regarding this.</description><content:encoded><![CDATA[<p>App releases, app distribution and general day-to-day development is full of laborious, manual tasks that squander our time. For iOS developers, Fastlane is an invaluable tool that can help automate away most of this.</p>
+<p>It&rsquo;s fantastically easy to integrate into your workflow - that is, unless you find yourself with an app that has already seen multiple, manually-performed releases. I found myself in said situation recently, banging my head in frustration at the lack of documentation regarding this. Fastlane is simple if you add it in from the beginning (and most guides assume you&rsquo;ll be doing so), but full of gotchas and landmines later if you don&rsquo;t.</p>
+<p>This series of posts outlines the process I went through and the various caveats I discovered along the way. By the end of it, we&rsquo;ll have an automated app-release pipeline that we can be proud of.</p>
+<h2 id="the-roadmap">The Roadmap</h2>
+<ul>
+<li>Part 1 - App Store Connect API Key for authentication</li>
+<li>Part 2 - Storing certificates/profiles in a GCP Bucket</li>
+<li>Part 3 - Reusing existing certificates, profiles and keys</li>
+<li>Part 4 - Migrating to manual app signing</li>
+<li>Part 5 - Provisioning Profile device list</li>
+<li>Part 6 - Uploading to TestFlight</li>
+</ul>
+<h1 id="part-1---app-store-connect-key">Part 1 - App Store Connect Key</h1>
+<p>We&rsquo;ll start off with the lowest hanging fruit: switching our authentication to using an API token.</p>
+<p>Any operation performed by Fastlane that involves the App Store (eg. submitting to TestFlight, releasing the app) or certificates/profiles (eg. downloading, updating, etc) hits an App Store Connect API under the hood. For obvious reasons, these operations all require authentication to prove that you are allowed to do so.</p>
+<h2 id="credentials-the-old-way">Credentials: The Old Way</h2>
+<p>If you&rsquo;ve been releasing an app manually, you would ordinarily log-in to App Store Connect with your email address and password in the browser.</p>
+<p>Fastlane uses this as the default form of authentication, and it is <strong>not recommended due to enforced Multi Factor Authentication</strong>. In other words, the app owner&rsquo;s account must have (Apple&rsquo;s) 2FA enabled, and therefore it will be linked to devices of that account. If you are not said person and need to release the app (manually or via Fastlane), you will need to pester said person often for a generated 2FA code.</p>
+<p>For the same reason, CI/CD will not be possible if you use this way, as it&rsquo;s infeasible to input an always-changing code on every job.</p>
+<p>Frustrating? Yes. Let&rsquo;s fix that first for our sanity.</p>
+<h2 id="private-key-the-better-way">Private Key: The Better Way</h2>
+<p>A key on the other hand will not prompt you for a 2FA code. As with any API token, you must take care who has it, as it grants the holder the ability to hit the APIs.</p>
+<p>A token can be generated on App Store Connect.</p>
+<p>WIP</p>
+<blockquote>
+<p>⚠️ Your account must have the <strong>Admin</strong> role to generate a token (or even see a link to the page). The <strong>App Owner</strong> role is not sufficient.</p>
+</blockquote>
+<blockquote>
+<p>🤯 App Store Connect occasionally has weird caching issues. If your role was just updated to Admin but you still don&rsquo;t see the tab to create the token, try logout of App Store Connect and restart the browser.</p>
+</blockquote>
+]]></content:encoded></item></channel></rss>
