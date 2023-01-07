@@ -10,7 +10,8 @@ App releases, app distribution and general day-to-day development is full of lab
 It's fantastically easy to integrate into your workflow - that is, unless you find yourself with an app that has already seen multiple, manually-performed releases. I found myself in said situation recently, banging my head in frustration at the lack of documentation regarding this. Fastlane is simple if you add it in from the beginning (and most guides assume you'll be doing so), but full of gotchas and landmines later if you don't. 
 
 This series of posts outlines the process I went through and the various caveats I discovered along the way. By the end of it, we'll have an automated app-release pipeline that we can be proud of.
- ap
+
+## The Roadmap
 
 * Part 1 - App Store Connect API Key for authentication
 * Part 2 - Storing certificates/profiles in a GCP Bucket

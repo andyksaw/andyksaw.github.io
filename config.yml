@@ -1,7 +1,7 @@
 baseURL: 'https://andyksaw.github.io'
 languageCode: en-us
 title: andysaw
-theme: PaperMod
+theme: PaperModX
 
 params:
   env: production
@@ -10,15 +10,15 @@ params:
   homeInfoParams:
     Content: "The ramblings of a Tokyo-based, ramen-powered, software engineer"
   socialIcons:
-    - name: "linkedin"
+    - name: "linkedin-simple"
       url: "https://linkedin.com/in/andy-saw/"
-    - name: "github"
+    - name: "github-simple"
       url: "https://github.com/andyksaw"
   ShowReadingTime: true
-  # ShowToc: false
   ShowCodeCopyButtons: true
   ShowPostNavLinks: false
-  TocSide: 'left'
+  ShowToC: true
+  TocSide: 'right'
 
 markup:
   highlight:
