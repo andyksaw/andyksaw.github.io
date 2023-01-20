@@ -8,7 +8,7 @@ params:
   assets:
     disableHLJS: true
   homeInfoParams:
-    Content: "The ramblings of a Tokyo-based, ramen-powered, software engineer"
+    Content: "🗼 Tokyo-based, 🍜 ramen-powered, ⌨️ software engineering.<p />Senior Engineer at __[WovenPlanet](https://www.woven-planet.global/)__. Former iOS Tech Lead at __[Mercari JP](https://about.mercari.com/)__."
   socialIcons:
     - name: "linkedin-simple"
       url: "https://linkedin.com/in/andy-saw/"
@@ -21,13 +21,13 @@ params:
   TocSide: 'right'
 
 markup:
+  goldmark:
+    renderer:
+      unsafe: true
   highlight:
-    # anchorLineNos: true
-    codeFences: true
-    guessSyntax: true
+    style: dracula
     lineNos: true
-    # noClasses: false
-    style: monokai
+    noClasses: false
 
 menu:
   main:
