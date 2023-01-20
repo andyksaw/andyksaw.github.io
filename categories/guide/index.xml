@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>guide on andysaw</title><link>https://andyksaw.github.io/categories/guide/</link><description>Recent content in guide on andysaw</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 06 Jan 2022 23:00:26 +0900</lastBuildDate><atom:link href="https://andyksaw.github.io/categories/guide/index.xml" rel="self" type="application/rss+xml"/><item><title>Migrating to Fastlane (Part 1)</title><link>https://andyksaw.github.io/posts/migrate-to-fastlane/part-1-api-key/</link><pubDate>Thu, 06 Jan 2022 23:00:26 +0900</pubDate><guid>https://andyksaw.github.io/posts/migrate-to-fastlane/part-1-api-key/</guid><description>App releases, app distribution and general day-to-day development is full of laborious, manual tasks that squander our time. For iOS developers, Fastlane is an invaluable tool that can help automate away most of this.
+It&amp;rsquo;s super easy to integrate into your workflow - that is, unless you find yourself with an app that has already seen multiple, manually-performed releases. I found myself in said situation recently, banging my head in frustration at the lack of documentation regarding this.</description><content:encoded><![CDATA[<p>App releases, app distribution and general day-to-day development is full of laborious, manual tasks that squander our time. For iOS developers, Fastlane is an invaluable tool that can help automate away most of this.</p>
+<p>It&rsquo;s super easy to integrate into your workflow - that is, unless you find yourself with an app that has already seen multiple, manually-performed releases. I found myself in said situation recently, banging my head in frustration at the lack of documentation regarding this. Fastlane is simple if you add it in from the beginning (and most guides assume you&rsquo;ll be doing so), but full of landmines later if you don&rsquo;t.</p>
+<p>This series of posts outlines the process I went through and the various caveats I discovered along the way. By the end of it, we&rsquo;ll have an automated app-release pipeline that we can be proud of.</p>
+<h2 id="the-roadmap">The Roadmap</h2>
+<ul>
+<li>Part 1 - <a href="/posts/migrate-to-fastlane-1-api-key/">App Store Connect API Key for authentication</a></li>
+<li>Part 2 - Storing certificates/profiles in a GCP Bucket</li>
+<li>Part 3 - Reusing existing certificates, profiles and keys</li>
+<li>Part 4 - Migrating to manual app signing</li>
+<li>Part 5 - Provisioning Profile device list</li>
+<li>Part 6 - Uploading to TestFlight</li>
+<li>Part 7 - Reducing secrets sprawl</li>
+</ul>
+<hr>
+<h1 id="part-1---app-store-connect-key">Part 1 - App Store Connect Key</h1>
+<p>We&rsquo;ll start off with the lowest hanging fruit: switching our API authentication to using a private key.</p>
+<p>Any operation performed by Fastlane that involves the App Store (eg. submitting to TestFlight, releasing the app) or certificates/profiles (eg. downloading, updating, etc) requires authentication to prove that you are allowed to do so.</p>
+<h2 id="credentials-a-world-of-pain">Credentials: A World of Pain</h2>
+<p>If you&rsquo;ve been releasing your app manually, you&rsquo;ll be familiar with logging-in to App Store Connect with your email address and password in the browser.</p>
+<p>Fastlane emulates that (cookie-based web session) authentication by default, using an unofficial version of the App Store Connect API. Performance and stability reasons aside, it is <strong>not recommended due to enforced Two Factor Authentication</strong>. In other words, the app owner&rsquo;s account must have (Apple&rsquo;s) 2FA enabled. If you are not said person and need to perform an app release, you will need to pester them often for a generated 2FA code.</p>
+<p>For the same reason, CI/CD will not be possible using this method as we can&rsquo;t (feasibly) input the ever-changing 2FA code.</p>
+<p>Frustrating? Yes. Let&rsquo;s fix that first for our sanity.</p>
+<h2 id="private-key-the-better-way">Private Key: The Better Way</h2>
+<p>The recommended approach is to use the official <a href="https://developer.apple.com/app-store-connect/api/">App Store Connect JSON API</a>, and authenticate using a JSON Web Token (JWT). All of that is taken care of by Fastlane under the hood, provided that we pass it a private key that can be used to generate said token.</p>
+<p>More importantly, by using the official API we will not be prompted for a 2FA code.</p>
+<h3 id="generating-the-key">Generating the Key</h3>
+<p>A token can be generated on App Store Connect.</p>
+<p>WIP</p>
+<blockquote>
+<p>⚠️ Your account must have the <strong>Admin</strong> role to generate a token (or even see a link to the page). The <strong>App Owner</strong> role is not sufficient.</p>
+</blockquote>
+<blockquote>
+<p>🤯 App Store Connect occasionally has weird caching issues. If your role was just updated to Admin but you still don&rsquo;t see the tab to create the token, try logout of App Store Connect and restart the browser.</p>
+</blockquote>
+<p>Let&rsquo;s download the <code>.p8</code> key file. Assuming your Fastlane files are stored in a <code>fastlane</code> folder, we should place the key in the parent of this folder.</p>
+<pre tabindex="0"><code>app/
+├── app_store_connect_api_key.p8
+└── fastlane/
+    └── Fastfile
+</code></pre><p><strong>Do not commit the key to your repository</strong>, and be sure to add it to your <code>.gitignore</code> file.</p>
+<p>As with any private key or token, you must take care who has access to it, as it grants the holder admin permissions to the API.</p>
+<h3 id="using-the-key">Using the Key</h3>
+<p>From there it&rsquo;s a matter of calling the <code>app_store_connect_api_key</code> action in your <code>Fastfile</code>.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="hl"><span class="lnt">2
+</span></span><span class="hl"><span class="lnt">3
+</span></span><span class="hl"><span class="lnt">4
+</span></span><span class="hl"><span class="lnt">5
+</span></span><span class="hl"><span class="lnt">6
+</span></span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-ruby" data-lang="ruby"><span class="line"><span class="cl"><span class="n">lane</span> <span class="ss">:beta</span> <span class="k">do</span> <span class="o">|</span><span class="n">options</span><span class="o">|</span>
+</span></span><span class="line hl"><span class="cl">  <span class="n">app_store_connect_api_key</span><span class="p">(</span>
+</span></span><span class="line hl"><span class="cl">    <span class="ss">key_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_ID&#34;</span><span class="o">]</span><span class="p">,</span>
+</span></span><span class="line hl"><span class="cl">    <span class="ss">issuer_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_ISSUER_ID&#34;</span><span class="o">]</span><span class="p">,</span>
+</span></span><span class="line hl"><span class="cl">    <span class="ss">key_filepath</span><span class="p">:</span> <span class="s2">&#34;app_store_connect_api_key.p8&#34;</span>
+</span></span><span class="line hl"><span class="cl">  <span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="n">upload_to_testflight</span> <span class="c1"># This action needs the token</span>
+</span></span><span class="line"><span class="cl"><span class="k">end</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Anything that requires interaction with App Store Connect (eg. TestFlight, registering devices with match, generating certs with match), will require a call to the <code>app_store_connect_api_key</code> action first.</p>
+<p>The action will return a dictionary/hash map containing the JWT Token. Technically we could pass the returned value as a parameter to each action that requires the token, but I find that totally unnecessary. The action automatically puts the key into the context, so <strong>you don’t need to do anything further</strong>.</p>
+<p>There&rsquo;s many approaches to how you can do this. Personally, I prefer to create a lane for injecting the key and switch to that lane when another lane requires the key.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="hl"><span class="lnt">10
+</span></span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-ruby" data-lang="ruby"><span class="line"><span class="cl"><span class="n">lane</span> <span class="ss">:setup_app_store_connect_key</span> <span class="k">do</span> <span class="o">|</span><span class="n">options</span><span class="o">|</span>
+</span></span><span class="line"><span class="cl">  <span class="n">app_store_connect_api_key</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">key_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_ID&#34;</span><span class="o">]</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">issuer_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_ISSUER_ID&#34;</span><span class="o">]</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">key_filepath</span><span class="p">:</span> <span class="s2">&#34;app_store_connect_api_key.p8&#34;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">end</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">lane</span> <span class="ss">:beta</span> <span class="k">do</span> <span class="o">|</span><span class="n">options</span><span class="o">|</span>
+</span></span><span class="line hl"><span class="cl">  <span class="n">setup_app_store_connect_key</span>
+</span></span><span class="line"><span class="cl">  <span class="n">upload_to_testflight</span>
+</span></span><span class="line"><span class="cl"><span class="k">end</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Great! We&rsquo;re now using the key for authentication when running Fastlane locally.</p>
+<h2 id="cicd">CI/CD</h2>
+<p>In CI/CD, we won’t have the <code>p8</code> file since it’s not pushed to the repository, and assuming you&rsquo;re using GitHub Actions, we cannot upload the key file.</p>
+<p>The solution is to store the contents of the key as a GitHub secret, and then inject it.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="hl"><span class="lnt">4
+</span></span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-ruby" data-lang="ruby"><span class="line"><span class="cl"><span class="n">app_store_connect_api_key</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">  <span class="ss">key_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_ID&#34;</span><span class="o">]</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="ss">issuer_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_ISSUER_ID&#34;</span><span class="o">]</span><span class="p">,</span>
+</span></span><span class="line hl"><span class="cl">  <span class="ss">key_content</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_CONTENT&#34;</span><span class="o">]</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="hl"><span class="lnt">4
+</span></span><span class="hl"><span class="lnt">5
+</span></span><span class="hl"><span class="lnt">6
+</span></span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl">- <span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l">Register new devices</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l">fastlane ios register_new_devices</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="nt">env</span><span class="p">:</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">    </span><span class="nt">ASC_API_KEY_ID</span><span class="p">:</span><span class="w"> </span><span class="l">${{ secrets.ASC_API_KEY_ID }}</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">    </span><span class="nt">ASC_API_ISSUER_ID</span><span class="p">:</span><span class="w"> </span><span class="l">${{ secrets.ASC_API_ISSUER_ID }}</span><span class="w">
+</span></span></span><span class="line hl"><span class="cl"><span class="w">    </span><span class="nt">ASC_API_KEY_CONTENT</span><span class="p">:</span><span class="w"> </span><span class="l">${{ secrets.ASC_API_KEY_CONTENT }}</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>That being said, we don&rsquo;t always want to have to inject the key contents. When running Fastlane on your own development machine you&rsquo;ll have the key as a file rather than as an environment variable.</p>
+<p>Luckily, we can make use of the in-built <code>is_ci</code> action to check if we’re in a CI/CD environment.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="hl"><span class="lnt">4
+</span></span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-ruby" data-lang="ruby"><span class="line"><span class="cl"><span class="n">app_store_connect_api_key</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">  <span class="ss">key_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_ID&#34;</span><span class="o">]</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">  <span class="ss">issuer_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_ISSUER_ID&#34;</span><span class="o">]</span><span class="p">,</span>
+</span></span><span class="line hl"><span class="cl">  <span class="ss">key_content</span><span class="p">:</span> <span class="n">is_ci</span> <span class="p">?</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_CONTENT&#34;</span><span class="o">]</span> <span class="p">:</span> <span class="s2">&#34;app_store_connect_api_key.p8&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div>]]></content:encoded></item></channel></rss>
