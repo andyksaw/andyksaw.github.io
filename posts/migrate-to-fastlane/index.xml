@@ -33,7 +33,7 @@ It&amp;rsquo;s super easy to integrate into your workflow - that is, unless you 
 <blockquote>
 <p>🤯 App Store Connect occasionally has weird caching issues. If your role was just updated to Admin but you still don&rsquo;t see the tab to create the token, try logout of App Store Connect and restart the browser.</p>
 </blockquote>
-<p>Let&rsquo;s download the <code>.p8</code> key file. Assuming your Fastlane files are stored in a <code>fastlane</code> folder, we should place the key in the parent of this folder.</p>
+<p>Let&rsquo;s download the <code>.p8</code> key file. Assuming your Fastlane files are stored in a <code>fastlane</code> folder, we should place the key in the parent of this folder. You can actually put it wherever you like, but for simplicity sake we&rsquo;ll store it like so:</p>
 <pre tabindex="0"><code>app/
 ├── app_store_connect_api_key.p8
 └── fastlane/
@@ -99,7 +99,7 @@ It&amp;rsquo;s super easy to integrate into your workflow - that is, unless you 
 </div>
 </div><p>Great! We&rsquo;re now using the key for authentication when running Fastlane locally.</p>
 <h2 id="cicd">CI/CD</h2>
-<p>In CI/CD, we won’t have the <code>p8</code> file since it’s not pushed to the repository, and assuming you&rsquo;re using GitHub Actions, we cannot upload the key file.</p>
+<p>On a GitHub Runner, we won’t have the <code>.p8</code> file since it’s not pushed to the repository, and assuming you&rsquo;re using GitHub Actions, we cannot upload the key file.</p>
 <p>The solution is to store the contents of the key as a GitHub secret, and then inject it.</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -139,18 +139,67 @@ It&amp;rsquo;s super easy to integrate into your workflow - that is, unless you 
 <p>Luckily, we can make use of the in-built <code>is_ci</code> action to check if we’re in a CI/CD environment.</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="hl"><span class="lnt"> 4
+</span></span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-ruby" data-lang="ruby"><span class="line"><span class="cl"><span class="n">key_id</span> <span class="o">=</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_ID&#34;</span><span class="o">]</span>
+</span></span><span class="line"><span class="cl"><span class="n">issuer_id</span> <span class="o">=</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_ISSUER_ID&#34;</span><span class="o">]</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line hl"><span class="cl"><span class="k">if</span> <span class="n">is_ci</span>
+</span></span><span class="line"><span class="cl">  <span class="n">app_store_connect_api_key</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">key_id</span><span class="p">:</span> <span class="n">key_id</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">issuer_id</span><span class="p">:</span> <span class="n">issuer_id</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">key_content</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_CONTENT&#34;</span><span class="o">]</span>
+</span></span><span class="line"><span class="cl">  <span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">else</span>
+</span></span><span class="line"><span class="cl">  <span class="n">app_store_connect_api_key</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">key_id</span><span class="p">:</span> <span class="n">key_id</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">issuer_id</span><span class="p">:</span> <span class="n">issuer_id</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="ss">key_content</span><span class="p">:</span> <span class="s2">&#34;app_store_connect_api_key.p8&#34;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="k">end</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="cant-you-inline-the-is_ci">Can&rsquo;t you inline the <code>is_ci</code>?</h3>
+<p>Duplication is unideal, and you would think this could simplify it:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-ruby" data-lang="ruby"><span class="line"><span class="cl"><span class="ss">key_content</span><span class="p">:</span> <span class="n">is_ci</span> <span class="p">?</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_CONTENT&#34;</span><span class="o">]</span> <span class="p">:</span> <span class="s2">&#34;app_store_connect_api_key.p8&#34;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>But the <code>is_ci</code> is a Fastlane Action, and therefore has to be on its own line:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt">1
 </span><span class="lnt">2
 </span><span class="lnt">3
-</span><span class="hl"><span class="lnt">4
-</span></span><span class="lnt">5
+</span><span class="lnt">4
+</span><span class="lnt">5
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-ruby" data-lang="ruby"><span class="line"><span class="cl"><span class="n">app_store_connect_api_key</span><span class="p">(</span>
-</span></span><span class="line"><span class="cl">  <span class="ss">key_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_ID&#34;</span><span class="o">]</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">  <span class="ss">issuer_id</span><span class="p">:</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_ISSUER_ID&#34;</span><span class="o">]</span><span class="p">,</span>
-</span></span><span class="line hl"><span class="cl">  <span class="ss">key_content</span><span class="p">:</span> <span class="n">is_ci</span> <span class="p">?</span> <span class="no">ENV</span><span class="o">[</span><span class="s2">&#34;ASC_API_KEY_CONTENT&#34;</span><span class="o">]</span> <span class="p">:</span> <span class="s2">&#34;app_store_connect_api_key.p8&#34;</span>
-</span></span><span class="line"><span class="cl"><span class="p">)</span>
+<pre tabindex="0" class="chroma"><code class="language-ruby" data-lang="ruby"><span class="line"><span class="cl"><span class="k">if</span> <span class="n">is_ci</span>
+</span></span><span class="line"><span class="cl">  <span class="o">...</span>
+</span></span><span class="line"><span class="cl"><span class="k">else</span>
+</span></span><span class="line"><span class="cl">  <span class="o">...</span>
+</span></span><span class="line"><span class="cl"><span class="k">end</span>
 </span></span></code></pre></td></tr></table>
 </div>
 </div>]]></content:encoded></item></channel></rss>
