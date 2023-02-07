@@ -3,6 +3,7 @@ title: "Migrating to Fastlane (Part 1)"
 date: 2022-01-06T23:00:26+09:00
 tags: [ios, fastlane, app store connect, api key]
 categories: [ios, fastlane, guide]
+draft: false
 ---
 
 App releases, app distribution and general day-to-day development is full of laborious, manual tasks that squander our time. For iOS developers, Fastlane is an invaluable tool that can help automate away most of this. 
@@ -57,7 +58,7 @@ WIP
 
 > 🤯 App Store Connect occasionally has weird caching issues. If your role was just updated to Admin but you still don't see the tab to create the token, try logout of App Store Connect and restart the browser.
 
-Let's download the `.p8` key file. Assuming your Fastlane files are stored in a `fastlane` folder, we should place the key in the parent of this folder.
+Let's download the `.p8` key file. Assuming your Fastlane files are stored in a `fastlane` folder, we should place the key in the parent of this folder. You can actually put it wherever you like, but for simplicity sake we'll store it like so:
 
 ```
 app/
@@ -111,7 +112,7 @@ Great! We're now using the key for authentication when running Fastlane locally.
 
 ## CI/CD
 
-In CI/CD, we won’t have the `p8` file since it’s not pushed to the repository, and assuming you're using GitHub Actions, we cannot upload the key file. 
+On a GitHub Runner, we won’t have the `.p8` file since it’s not pushed to the repository, and assuming you're using GitHub Actions, we cannot upload the key file. 
 
 The solution is to store the contents of the key as a GitHub secret, and then inject it.
 
@@ -137,9 +138,36 @@ That being said, we don't always want to have to inject the key contents. When r
 Luckily, we can make use of the in-built `is_ci` action to check if we’re in a CI/CD environment.
 
 ```ruby {linenos=table,hl_lines="4"}
-app_store_connect_api_key(
-  key_id: ENV["ASC_API_KEY_ID"],
-  issuer_id: ENV["ASC_API_ISSUER_ID"],
-  key_content: is_ci ? ENV["ASC_API_KEY_CONTENT"] : "app_store_connect_api_key.p8"
-)
+key_id = ENV["ASC_API_KEY_ID"]
+issuer_id = ENV["ASC_API_ISSUER_ID"]
+
+if is_ci
+  app_store_connect_api_key(
+    key_id: key_id,
+    issuer_id: issuer_id,
+    key_content: ENV["ASC_API_KEY_CONTENT"]
+  )
+else
+  app_store_connect_api_key(
+    key_id: key_id,
+    issuer_id: issuer_id,
+    key_content: "app_store_connect_api_key.p8"
+  )
+end
+```
+
+### Can't you inline the `is_ci`?
+
+Duplication is unideal, and you would think this could simplify it:
+```ruby
+key_content: is_ci ? ENV["ASC_API_KEY_CONTENT"] : "app_store_connect_api_key.p8"
+```
+
+But the `is_ci` is a Fastlane Action, and therefore has to be on its own line:
+```ruby
+if is_ci
+  ...
+else
+  ...
+end
 ```

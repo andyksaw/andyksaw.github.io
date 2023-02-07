@@ -3,6 +3,7 @@ title: "Force-sync your Flutter and iOS versions"
 date: 2023-01-10T11:23:00+09:00
 tags: [ios, fastlane, flutter]
 categories: [ios, fastlane, flutter]
+draft: false
 ---
 
 While iOS app distribution can already be a challenge on its own, Flutter is a black box wrapping around that to add an extra level of _undocumented pain_.
